@@ -6,7 +6,7 @@
 
 /**
  * @typedef {Object} CarbonIntensity - carbon intensity measurement
- * @property {number} actual - actual amount of co2 emitted
+ * @property {number} actual - actual amount of co2 emitted in units gCO2/kWh
  */
 
 /**
@@ -17,8 +17,12 @@
  */
 
 /**
+ * @typedef {'gas' | 'coal' | 'biomass' | 'nuclear' | 'hydro' | 'imports' | 'other' | 'wind' | 'solar'} Fuel
+ */
+
+/**
  * @typedef {Object} GenerationMix - fuel generation mix measurement
- * @property {'gas' | 'coal' | 'biomass' | 'nuclear' | 'hydro' | 'imports' | 'other' | 'wind' | 'solar' } fuel - the fuel used
+ * @property {Fuel} fuel - the fuel used
  * @property {number} perc - the percentage of the total that this fuel provided
  */
 

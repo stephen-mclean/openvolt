@@ -28,6 +28,19 @@ const CARBON_INTENSITY_API_BASE_URL = process.env.CARBON_INTENSITY_API_BASE_URL;
  */
 
 /**
+ * @typedef {Object} GenerationMix - fuel generation mix measurement
+ * @property {'gas' | 'coal' | 'biomass' | 'nuclear' | 'hydro' | 'imports' | 'other' | 'wind' | 'solar' } fuel - the fuel used
+ * @property {number} perc - the percentage of the total that this fuel provided
+ */
+
+/**
+ * @typedef {Object} GenerationMixInterval - a generation mix interval from the national grid API
+ * @property {string} from - the start date of the interval
+ * @property {string} to - the end date of the interval
+ * @property {GenerationMix[]} generationmix - the list of fuels used to generate the energy for the interval
+ */
+
+/**
  * Load energy intervals from OpenVolt
  *
  * @param {Date} startDate
@@ -83,9 +96,45 @@ const loadCO2Emissions = async (startDate = START_DATE, endDate = END_DATE) => {
   return json.data;
 };
 
+/**
+ * Load co2 emissions data from national grid API
+ * @param {Date} startDate
+ * @param {Date} endDate
+ * @returns {Promise<GenerationMixInterval[]>}
+ */
+const loadGenerationMix = async (
+  startDate = START_DATE,
+  endDate = END_DATE
+) => {
+  const from = new Date(startDate.getTime());
+  from.setMinutes(from.getMinutes() + 30);
+
+  const to = new Date(endDate.getTime());
+  to.setMinutes(to.getMinutes() + 30);
+
+  const url = `${CARBON_INTENSITY_API_BASE_URL}/generation/${from.toISOString()}/${to.toISOString()}`;
+
+  const response = await fetch(url);
+  const json = await response.json();
+
+  return json.data;
+};
+
 const summarizeEnergyAndEmissionData = async () => {
   const energyIntervals = await loadIntervals();
   const co2Data = await loadCO2Emissions();
+  const generationMix = await loadGenerationMix();
+
+  const numberOfIntervals = energyIntervals.length;
+
+  if (
+    numberOfIntervals !== co2Data.length &&
+    numberOfIntervals !== generationMix.length
+  ) {
+    console.error(
+      "Mismatch in the number of intervals for the different data types."
+    );
+  }
 
   const kwhConsumed = energyIntervals.reduce(
     (acc, val) => acc + Number(val.consumption),
@@ -103,9 +152,32 @@ const summarizeEnergyAndEmissionData = async () => {
 
   console.log(" ===== energy data ======", energyIntervals);
   console.log(" ===== co2 data ======", co2Data);
+  console.log(" ===== generation mix data ======", generationMix);
+  console.log(" ==== mix for interval 1 =====", generationMix[0].generationmix);
+  console.log(" ==== mix for interval 2 =====", generationMix[1].generationmix);
   console.log(" ===== co2 intervals =====", co2EmittedPerInterval);
 
   const co2Emitted = co2EmittedPerInterval.reduce((acc, val) => acc + val, 0);
+
+  const fuelToTotalPercentage = generationMix
+    .flatMap((g) => g.generationmix)
+    .reduce((acc, current) => {
+      const currentPercentage = acc[current.fuel] || 0;
+      return {
+        ...acc,
+        [current.fuel]: currentPercentage + current.perc,
+      };
+    }, {});
+
+  const fuelToAverage = Object.keys(fuelToTotalPercentage).reduce(
+    (acc, current) => {
+      return {
+        ...acc,
+        [current]: fuelToTotalPercentage[current] / numberOfIntervals,
+      };
+    },
+    {}
+  );
 
   const results = [
     {
@@ -119,6 +191,7 @@ const summarizeEnergyAndEmissionData = async () => {
   ];
 
   console.table(results);
+  console.table(fuelToAverage);
 };
 
 summarizeEnergyAndEmissionData();

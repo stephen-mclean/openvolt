@@ -14,18 +14,21 @@ const {
 } = require("./aggregators");
 
 const START_DATE = new Date("01/01/2023");
-const END_DATE = new Date(2023, 0, 1, 0, 30);
+const END_DATE = new Date(2023, 0, 31, 23, 30);
 const GRANULARITY = "hh";
 const METER_ID = process.env.METER_ID;
 
 const summarizeEnergyAndEmissionData = async () => {
-  console.time("load-and-summarize-data");
+  console.log("Loading OpenVolt and NationalGrid data...");
+  console.time("load-data");
 
   const [energyIntervals, co2Data, generationMix] = await Promise.all([
     loadIntervals(START_DATE, END_DATE, METER_ID, GRANULARITY),
     loadCO2Emissions(START_DATE, END_DATE),
     loadGenerationMix(START_DATE, END_DATE),
   ]);
+
+  console.timeEnd("load-data");
 
   const numberOfIntervals = energyIntervals.length;
 
@@ -38,36 +41,33 @@ const summarizeEnergyAndEmissionData = async () => {
     );
   }
 
+  console.log("Summarizing data...");
+  console.time("aggregate-data");
+
   const kwhConsumed = getTotalKwhConsumed(energyIntervals);
-
-  console.log(" ===== energy data ======", energyIntervals);
-  console.log(" ===== co2 data ======", co2Data);
-  console.log(" ===== generation mix data ======", generationMix);
-  console.log(" ==== mix for interval 1 =====", generationMix[0].generationmix);
-  console.log(" ==== mix for interval 2 =====", generationMix[1].generationmix);
-
   const co2Emitted = getTotalCo2Emitted(energyIntervals, co2Data);
-
-  const fuelToAverage = getFuelGenerationAverage(
+  const fuelGenerationResults = getFuelGenerationAverage(
     generationMix,
     numberOfIntervals
   );
 
-  const results = [
-    {
-      title: `kWh consumed from ${START_DATE} to ${END_DATE}`,
-      value: kwhConsumed,
-    },
-    {
-      title: `co2 emitted (kgs) from ${START_DATE} to ${END_DATE}`,
-      value: co2Emitted,
-    },
-  ];
+  console.timeEnd("aggregate-data");
+
+  console.log(
+    `Results for the period from ${START_DATE.toISOString()} to ${END_DATE.toISOString()}`
+  );
+
+  const results = {
+    "kWh consumed": kwhConsumed,
+    "CO2 emitted (kgs)": co2Emitted,
+  };
 
   console.table(results);
-  console.table(fuelToAverage);
 
-  console.timeEnd("load-and-summarize-data");
+  console.log(
+    "Average percentages of fuel used to generate the energy consumed from above:"
+  );
+  console.table(fuelGenerationResults);
 };
 
 summarizeEnergyAndEmissionData();

@@ -23,6 +23,10 @@ CARBON_INTENSITY_API_BASE_URL=https://api.carbonintensity.org.uk
 
 Replace `API_KEY` and `METER_ID` above.
 
+Once you've created that file, your project folder structure should look as follows:
+
+![folder structure image](./readme-images/filestructure.png)
+
 ## Running the script
 
 ```

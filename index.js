@@ -15,14 +15,12 @@ const METER_ID = process.env.METER_ID;
 
 const summarizeEnergyAndEmissionData = async () => {
   console.time("load-and-summarize-data");
-  const energyIntervals = await loadIntervals(
-    START_DATE,
-    END_DATE,
-    METER_ID,
-    GRANULARITY
-  );
-  const co2Data = await loadCO2Emissions(START_DATE, END_DATE);
-  const generationMix = await loadGenerationMix(START_DATE, END_DATE);
+
+  const [energyIntervals, co2Data, generationMix] = await Promise.all([
+    loadIntervals(START_DATE, END_DATE, METER_ID, GRANULARITY),
+    loadCO2Emissions(START_DATE, END_DATE),
+    loadGenerationMix(START_DATE, END_DATE),
+  ]);
 
   const numberOfIntervals = energyIntervals.length;
 
